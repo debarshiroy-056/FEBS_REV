@@ -25,7 +25,7 @@ print("==================================================")
 print("STARTING SINGLE COHORT-STACKED BINARY HEATMAP")
 print("==================================================")
 
-input_file <- "Focal_Species_Cohort_Medication_Table_TSG.xlsx"
+input_file <- "Focal_Species_Cohort_Medication_Table_filtered.xlsx"
 output_dir <- "Binary_Heatmap_Cohort_Outputs"
 
 if (!file.exists(input_file)) {
@@ -103,15 +103,31 @@ binary_heatmap_df <- bind_rows(lapply(cohort_order, function(cohort_name) {
     Cohort = factor(Cohort, levels = cohort_order)
   )
 
-# Carpet exports: long format and wide format.
+# ==============================================================================
+# Carpet exports: Guarantee exact visual order (Top-to-Bottom, Left-to-Right)
+# ==============================================================================
+
+# 1. Define the exact top-to-bottom visual order for the rows
+exact_row_order <- paste0(
+  rep(cohort_order, times = vapply(species_order_by_cohort, length, integer(1))),
+  " | ",
+  unlist(species_order_by_cohort)
+)
+
+# 2. Long format export
 binary_carpet_long <- binary_heatmap_df %>%
   mutate(
     Row_Label = as.character(Row_Label),
     Medication = as.character(Medication)
   ) %>%
   select(Cohort, Species, Row_Label, Medication, Present) %>%
-  arrange(match(Cohort, cohort_order), Species, Medication)
+  # Arrange rows top-to-bottom, and medications left-to-right
+  arrange(
+    match(Row_Label, exact_row_order),
+    match(Medication, medication_order)
+  )
 
+# 3. Wide format export (The true 2D matrix matching the plot)
 binary_carpet_wide <- binary_heatmap_df %>%
   mutate(
     Row_Label = as.character(Row_Label),
@@ -119,13 +135,10 @@ binary_carpet_wide <- binary_heatmap_df %>%
   ) %>%
   select(Cohort, Species, Row_Label, Medication, Present) %>%
   pivot_wider(names_from = Medication, values_from = Present) %>%
-  mutate(Cohort = factor(Cohort, levels = cohort_order),
-         Row_Label = factor(Row_Label, levels = rev(levels(binary_heatmap_df$Row_Label)))) %>%
-  arrange(Cohort, desc(Row_Label)) %>%
-  mutate(
-    Cohort = as.character(Cohort),
-    Row_Label = as.character(Row_Label)
-  )
+  # Force the rows to match the top-to-bottom order of the plot
+  arrange(match(Row_Label, exact_row_order)) %>%
+  # Force the columns to match the left-to-right order of the plot
+  select(Cohort, Species, Row_Label, all_of(medication_order))
 
 write.csv(
   binary_carpet_long,
@@ -138,6 +151,7 @@ write.csv(
   file.path(output_dir, "Single_Heatmap_Binary_Carpet_Wide.csv"),
   row.names = FALSE
 )
+
 
 n_species <- length(unique(binary_heatmap_df$Row_Label))
 n_medications <- length(medication_order)
@@ -195,3 +209,4 @@ ggsave(
 print("==================================================")
 print(paste0("SUCCESS: Single stacked heatmap and carpets saved in '", output_dir, "'"))
 print("Generated files include PNG/PDF figure plus long and wide carpet CSV exports.")
+print("==================================================")
