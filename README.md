@@ -1,4 +1,4 @@
-# Medication Data Figure Generation README
+# Medication Data Figure and Age Adjusted Disease Association Score Figure Generation README
 
 This document gives the proper from-scratch pipeline order for generating both figures and their exported tables.
 
